@@ -43,3 +43,9 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+android/.gitignore
+macos/Flutter/GeneratedPluginRegistrant.swift
+.gitignore
+macos/Flutter/ephemeral/Flutter-Generated.xcconfig
+
+macos/Flutter/ephemeral
