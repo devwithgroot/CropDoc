@@ -12,6 +12,6 @@ key.properties
 **/*.keystore
 **/*.jks
 
-app
+android/app/build
 
 pubspeck.lock
