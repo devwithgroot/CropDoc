@@ -1,8 +1,140 @@
+// import 'dart:io';
+// import 'package:flutter/material.dart';
+// import 'package:cropdoc/ml/model_service.dart';
+
+// class DiagnosisScreen extends StatefulWidget {
+//   final File imageFile;
+
+//   const DiagnosisScreen({super.key, required this.imageFile});
+
+//   @override
+//   State<DiagnosisScreen> createState() => _DiagnosisScreenState();
+// }
+
+// class _DiagnosisScreenState extends State<DiagnosisScreen> {
+//   String? _diagnosisResult;
+//   double? _confidence;
+//   bool _isLoading = true;
+//   String? _error;
+
+//   @override
+//   void initState() {
+//     super.initState();
+//     _performDiagnosis();
+//   }
+
+//   Future<void> _performDiagnosis() async {
+//     setState(() {
+//       _isLoading = true;
+//       _error = null;
+//       _diagnosisResult = null;
+//       _confidence = null;
+//     });
+
+//     try {
+//       final modelService = ModelService();
+//       await modelService.init();
+
+//       final Map<String, double> result = await modelService.predict(widget.imageFile);
+
+//       if (result.isEmpty) {
+//         setState(() {
+//           _error = 'No results found.';
+//           _isLoading = false;
+//         });
+//         return;
+//       }
+
+//       final best = result.entries.reduce(
+//         (a, b) => a.value > b.value ? a : b,
+//       );
+
+//       setState(() {
+//         _diagnosisResult = best.key;
+//         _confidence = best.value;
+//         _isLoading = false;
+//       });
+//     } catch (e) {
+//       setState(() {
+//         _error = 'Error during diagnosis: $e';
+//         _isLoading = false;
+//       });
+//     }
+//   }
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return Scaffold(
+//       appBar: AppBar(
+//         title: const Text("Diagnosis Result"),
+//       ),
+//       body: _isLoading
+//           ? const Center(child: CircularProgressIndicator())
+//           : _error != null
+//               ? Center(
+//                   child: Padding(
+//                     padding: const EdgeInsets.all(16.0),
+//                     child: Text(
+//                       _error!,
+//                       style: const TextStyle(color: Colors.red, fontSize: 16),
+//                       textAlign: TextAlign.center,
+//                     ),
+//                   ),
+//                 )
+//               : _diagnosisResult == null
+//                   ? const Center(
+//                       child: Text("No diagnosis result found."),
+//                     )
+//                   : Padding(
+//                       padding: const EdgeInsets.all(16.0),
+//                       child: Card(
+//                         shape: RoundedRectangleBorder(
+//                           borderRadius: BorderRadius.circular(12),
+//                         ),
+//                         elevation: 5,
+//                         child: Padding(
+//                           padding: const EdgeInsets.all(20),
+//                           child: Column(
+//                             mainAxisSize: MainAxisSize.min,
+//                             crossAxisAlignment: CrossAxisAlignment.start,
+//                             children: [
+//                               const Text(
+//                                 'Diagnosis Result',
+//                                 style: TextStyle(
+//                                   fontSize: 22,
+//                                   fontWeight: FontWeight.bold,
+//                                   color: Colors.green,
+//                                 ),
+//                               ),
+//                               const SizedBox(height: 16),
+//                               Text(
+//                                 'Disease: $_diagnosisResult',
+//                                 style: const TextStyle(
+//                                   fontSize: 18,
+//                                   color: Colors.blueAccent,
+//                                   fontWeight: FontWeight.w600,
+//                                 ),
+//                               ),
+//                               const SizedBox(height: 8),
+//                               Text(
+//                                 'Confidence: ${(_confidence! * 100).toStringAsFixed(2)}%',
+//                                 style: const TextStyle(fontSize: 16),
+//                               ),
+//                             ],
+//                           ),
+//                         ),
+//                       ),
+//                     ),
+//     );
+//   }
+// }
+
+
+
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:tflite_flutter/tflite_flutter.dart';
-import 'package:image/image.dart' as img;
+import 'package:cropdoc/ml/model_service.dart';
+import 'package:cropdoc/services/cloud_service.dart';
 
 class DiagnosisScreen extends StatefulWidget {
   final File imageFile;
@@ -14,134 +146,87 @@ class DiagnosisScreen extends StatefulWidget {
 }
 
 class _DiagnosisScreenState extends State<DiagnosisScreen> {
-  Interpreter? _interpreter;
-  List<dynamic>? _results;
+  String? _diagnosisResult;
+  double? _confidence;
+  Map<String, dynamic>? _diseaseInfo;
+
   bool _isLoading = true;
   String? _error;
-
-  // ignore: constant_identifier_names
-  static const int INPUT_SIZE = 224;
-
-  final List<String> _labels = [
-    'Healthy',
-    'Early blight',
-    'Late blight',
-    'Leaf Miner',
-    'Magnesium Deficiency',
-    'Potassium Deficiency',
-    'Spotted Wilt Virus',
-    'Yellow Leaf Curl Virus',
-  ];
 
   @override
   void initState() {
     super.initState();
-    _loadModelAndProcessImage();
+    _performDiagnosis();
   }
 
-  Future<void> _loadModelAndProcessImage() async {
+  Future<void> _performDiagnosis() async {
     setState(() {
       _isLoading = true;
       _error = null;
+      _diagnosisResult = null;
+      _confidence = null;
+      _diseaseInfo = null;
     });
 
     try {
-      _interpreter = await Interpreter.fromAsset('assets/model.tflite');
-      await _processImage();
-    } catch (e) {
-      setState(() {
-        _error = 'Failed to load TFLite model: $e';
-        _isLoading = false;
-      });
-    }
-  }
+      final modelService = ModelService();
+      await modelService.init();
 
-  Future<void> _processImage() async {
-    if (_interpreter == null) {
-      setState(() {
-        _error = 'TFLite interpreter not loaded.';
-        _isLoading = false;
-      });
-      return;
-    }
+      final result = await modelService.predict(widget.imageFile);
 
-    try {
-      final Uint8List imageBytes = await widget.imageFile.readAsBytes();
-      img.Image? originalImage = img.decodeImage(imageBytes);
-
-      if (originalImage == null) {
+      if (result.isEmpty) {
         setState(() {
-          _error = 'Failed to decode image.';
+          _error = 'No results found.';
           _isLoading = false;
         });
         return;
       }
 
-      img.Image resizedImage = img.copyResize(
-        originalImage,
-        width: INPUT_SIZE,
-        height: INPUT_SIZE,
-      );
+      final best = result.entries.reduce((a, b) => a.value > b.value ? a : b);
 
-      Float32List inputBytes =
-          Float32List(1 * INPUT_SIZE * INPUT_SIZE * 3); // 1x224x224x3
-      int pixelIndex = 0;
-      for (int y = 0; y < INPUT_SIZE; y++) {
-        for (int x = 0; x < INPUT_SIZE; x++) {
-          final pixel = resizedImage.getPixel(x, y);
-          final r = pixel.r.toDouble();
-          final g = pixel.g.toDouble();
-          final b = pixel.b.toDouble();
-
-          inputBytes[pixelIndex++] = r / 255.0;
-          inputBytes[pixelIndex++] = g / 255.0;
-          inputBytes[pixelIndex++] = b / 255.0;
-        }
-      }
-
-      List<List<List<List<double>>>> input = [
-        List.generate(
-          INPUT_SIZE,
-          (y) => List.generate(
-            INPUT_SIZE,
-            (x) => List.generate(
-              3,
-              (c) => inputBytes[y * INPUT_SIZE * 3 + x * 3 + c],
-            ),
-          ),
-        )
-      ];
-
-      final outputTensorShape = _interpreter!.getOutputTensor(0).shape;
-      final numClasses = outputTensorShape.last;
-      List<List<double>> output = [List.filled(numClasses, 0.0)];
-
-      _interpreter?.run(input, output);
+      final cloudService = CloudService();
+      final info = await cloudService.getDiseaseInfo(best.key);
 
       setState(() {
-        _results = output[0];
+        _diagnosisResult = best.key;
+        _confidence = best.value;
+        _diseaseInfo = info;
         _isLoading = false;
       });
     } catch (e) {
       setState(() {
-        _error = 'Failed to process image with TFLite: $e';
+        _error = 'Error during diagnosis: $e';
         _isLoading = false;
       });
     }
   }
 
-  @override
-  void dispose() {
-    _interpreter?.close();
-    super.dispose();
+  Widget buildInfoCard(String title, String value, Color color) {
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      color: color.withOpacity(0.1),
+      elevation: 3,
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      child: Padding(
+        padding: const EdgeInsets.all(14.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title,
+                style: TextStyle(
+                    fontWeight: FontWeight.bold, fontSize: 16, color: color)),
+            const SizedBox(height: 6),
+            Text(value, style: TextStyle(fontSize: 14)),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Diagnosis Results"),
-      ),
+      appBar: AppBar(title: const Text("Diagnosis Result")),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
@@ -149,74 +234,63 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Text(
-                      'Error: $_error',
+                      _error!,
                       style: const TextStyle(color: Colors.red, fontSize: 16),
                       textAlign: TextAlign.center,
                     ),
                   ),
                 )
-              : _results == null || _results!.isEmpty
-                  ? const Center(
-                      child: Text(
-                        "No results found.",
-                        style: TextStyle(fontSize: 18, color: Colors.grey),
-                        textAlign: TextAlign.center,
-                      ),
-                    )
-                  : Builder(
-                      builder: (context) {
-                        final List<double> resultList =
-                            _results!.cast<double>();
-                        final maxConfidence = resultList.reduce(
-                            (a, b) => a > b ? a : b);
-                        final maxIndex = resultList.indexOf(maxConfidence);
-                        final label = (maxIndex < _labels.length)
-                            ? _labels[maxIndex]
-                            : 'Unknown';
-
-                        return Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Card(
-                            elevation: 6,
+              : _diagnosisResult == null
+                  ? const Center(child: Text("No diagnosis result found."))
+                  : SingleChildScrollView(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Card(
+                            elevation: 5,
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12)),
                             child: Padding(
-                              padding: const EdgeInsets.all(20.0),
+                              padding: const EdgeInsets.all(20),
                               child: Column(
-                                mainAxisSize: MainAxisSize.min,
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   const Text(
                                     'Diagnosis Result',
                                     style: TextStyle(
-                                      fontSize: 24,
+                                      fontSize: 22,
                                       fontWeight: FontWeight.bold,
                                       color: Colors.green,
                                     ),
                                   ),
-                                  const SizedBox(height: 20),
+                                  const SizedBox(height: 16),
                                   Text(
-                                    'Disease: $label',
+                                    'Disease: $_diagnosisResult',
                                     style: const TextStyle(
-                                      fontSize: 20,
+                                      fontSize: 18,
                                       color: Colors.blueAccent,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
-                                  const SizedBox(height: 10),
+                                  const SizedBox(height: 8),
                                   Text(
-                                    'Confidence: ${(maxConfidence * 100).toStringAsFixed(2)}%',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      color: Colors.grey[800],
-                                    ),
+                                    'Confidence: ${(_confidence! * 100).toStringAsFixed(2)}%',
+                                    style: const TextStyle(fontSize: 16),
                                   ),
                                 ],
                               ),
                             ),
                           ),
-                        );
-                      },
+                          const SizedBox(height: 16),
+                          if (_diseaseInfo != null) ...[
+                            buildInfoCard('Cause', _diseaseInfo!['cause'] ?? 'N/A', Colors.orange),
+                            buildInfoCard('Symptoms', _diseaseInfo!['symptoms'] ?? 'N/A', Colors.deepPurple),
+                            buildInfoCard('Cure', _diseaseInfo!['cure'] ?? 'N/A', Colors.teal),
+                            buildInfoCard('Treatment', _diseaseInfo!['treatment'] ?? 'N/A', Colors.red),
+                          ],
+                        ],
+                      ),
                     ),
     );
   }
