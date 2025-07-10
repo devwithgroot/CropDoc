@@ -9,11 +9,11 @@ class CloudService {
       if (doc.exists) {
         return doc.data();
       } else {
-        print("❌ Disease not found in Firestore: $diseaseName");
+        print("Disease not found in Firestore: $diseaseName");
         return null;
       }
     } catch (e) {
-      print("🔥 Firestore error: $e");
+      print("Firestore error: $e");
       return null;
     }
   }
