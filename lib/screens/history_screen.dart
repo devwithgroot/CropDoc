@@ -1,86 +1,3 @@
-// import 'package:flutter/material.dart';
-// import '../services/storage_service.dart';
-// import '../models/diagnosis_model.dart';
-
-// class HistoryScreen extends StatelessWidget {
-//   const HistoryScreen({super.key});
-
-//   @override
-//   Widget build(BuildContext context) {
-//     final List<DiagnosisModel> history = StorageService().getAllDiagnoses();
-
-//     return Scaffold(
-//       appBar: AppBar(title: const Text("Diagnosis History")),
-//       body: history.isEmpty
-//           ? const Center(child: Text("No history found."))
-//           : ListView.builder(
-//               itemCount: history.length,
-//               itemBuilder: (context, index) {
-//                 final item = history[index];
-
-//                 return Padding(
-//                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-//                   child: Card(
-//                     elevation: 4,
-//                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-//                     child: Padding(
-//                       padding: const EdgeInsets.all(16.0),
-//                       child: Column(
-//                         crossAxisAlignment: CrossAxisAlignment.start,
-//                         children: [
-//                           Text(
-//                             item.disease,
-//                             style: const TextStyle(
-//                               fontSize: 20,
-//                               fontWeight: FontWeight.bold,
-//                               color: Colors.green,
-//                             ),
-//                           ),
-//                           const SizedBox(height: 8),
-//                           Text(
-//                             "Confidence: ${(item.confidence * 100).toStringAsFixed(2)}%",
-//                             style: const TextStyle(fontSize: 14, color: Colors.black87),
-//                           ),
-//                           const SizedBox(height: 4),
-//                           Text(
-//                             "Date: ${item.dateTime.day}/${item.dateTime.month}/${item.dateTime.year} "
-//                             "${item.dateTime.hour}:${item.dateTime.minute.toString().padLeft(2, '0')}",
-//                             style: const TextStyle(fontSize: 12, color: Colors.grey),
-//                           ),
-//                           const SizedBox(height: 12),
-//                           _infoRow("Cause", item.cause, Colors.orange),
-//                           _infoRow("Symptoms", item.symptoms, Colors.deepPurple),
-//                           _infoRow("Cure", item.cure, Colors.teal),
-//                           _infoRow("Treatment", item.treatment, Colors.redAccent),
-//                         ],
-//                       ),
-//                     ),
-//                   ),
-//                 );
-//               },
-//             ),
-//     );
-//   }
-
-//   Widget _infoRow(String title, String value, Color color) {
-//     return Padding(
-//       padding: const EdgeInsets.only(bottom: 10.0),
-//       child: Column(
-//         crossAxisAlignment: CrossAxisAlignment.start,
-//         children: [
-//           Text(
-//             title,
-//             style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color),
-//           ),
-//           const SizedBox(height: 4),
-//           Text(value, style: const TextStyle(fontSize: 14)),
-//         ],
-//       ),
-//     );
-//   }
-// }
-
-
 import 'package:flutter/material.dart';
 import '../services/storage_service.dart';
 import '../models/diagnosis_model.dart';
@@ -99,68 +16,129 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Diagnosis History")),
+      backgroundColor: const Color(0xFFF8FAFC),
+      appBar: AppBar(
+        title: const Text(
+          'Diagnosis History 🌿',
+          style: TextStyle(
+            fontSize: 26,
+            fontWeight: FontWeight.bold,
+            letterSpacing: -0.5,
+          ),
+        ),
+        backgroundColor: Colors.teal.shade400,
+        foregroundColor: Colors.white,
+        elevation: 4,
+        centerTitle: true,
+      ),
       body: history.isEmpty
-          ? const Center(child: Text("No history found."))
+          ? const Center(
+              child: Text(
+                "No history found.",
+                style: TextStyle(fontSize: 18, color: Colors.grey),
+              ),
+            )
           : ListView.builder(
+              padding: const EdgeInsets.all(16),
               itemCount: history.length,
               itemBuilder: (context, index) {
                 final item = history[index];
                 final isExpanded = expandedIndices.contains(index);
+                final confidence = (item.confidence * 100).toStringAsFixed(1);
 
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  child: Card(
-                    elevation: 4,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    child: InkWell(
-                      onTap: () {
-                        setState(() {
-                          if (isExpanded) {
-                            expandedIndices.remove(index);
-                          } else {
-                            expandedIndices.add(index);
-                          }
-                        });
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              item.disease,
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.green,
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withOpacity(0.1),
+                        blurRadius: 10,
+                        spreadRadius: 3,
+                        offset: const Offset(0, 4),
+                      )
+                    ],
+                  ),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(20),
+                    onTap: () {
+                      setState(() {
+                        isExpanded
+                            ? expandedIndices.remove(index)
+                            : expandedIndices.add(index);
+                      });
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(18),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              // Circular confidence indicator
+                              Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  SizedBox(
+                                    height: 65,
+                                    width: 65,
+                                    child: CircularProgressIndicator(
+                                      value: item.confidence,
+                                      strokeWidth: 6,
+                                      backgroundColor: Colors.grey[200],
+                                      valueColor: const AlwaysStoppedAnimation<Color>(Colors.teal),
+                                    ),
+                                  ),
+                                  Text(
+                                    "$confidence%",
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                    ),
+                                  )
+                                ],
                               ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              "Date: ${item.dateTime.day}/${item.dateTime.month}/${item.dateTime.year} "
-                              "${item.dateTime.hour}:${item.dateTime.minute.toString().padLeft(2, '0')}",
-                              style: const TextStyle(fontSize: 13, color: Colors.grey),
-                            ),
-                            if (isExpanded) ...[
-                              const Divider(height: 20, color: Colors.black12),
-                              _infoRow("Confidence", "${(item.confidence * 100).toStringAsFixed(2)}%", Colors.blueAccent),
-                              _infoRow("Cause", item.cause, Colors.orange),
-                              _infoRow("Symptoms", item.symptoms, Colors.deepPurple),
-                              _infoRow("Cure", item.cure, Colors.teal),
-                              _infoRow("Treatment", item.treatment, Colors.red),
-                            ],
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: Icon(
-                                isExpanded
-                                    ? Icons.keyboard_arrow_up
-                                    : Icons.keyboard_arrow_down,
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      item.disease,
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.teal,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      "Diagnosed on: ${item.dateTime.day}/${item.dateTime.month}/${item.dateTime.year} "
+                                      "${item.dateTime.hour}:${item.dateTime.minute.toString().padLeft(2, '0')}",
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Icon(
+                                isExpanded ? Icons.expand_less : Icons.expand_more,
                                 color: Colors.grey[600],
                               ),
-                            ),
+                            ],
+                          ),
+                          if (isExpanded) ...[
+                            const Divider(height: 30),
+                            _buildInfoSection("Cause", item.cause, Colors.orange),
+                            _buildInfoSection("Symptoms", item.symptoms, Colors.deepPurple),
+                            _buildInfoSection("Cure", item.cure, Colors.green),
+                            _buildInfoSection("Treatment", item.treatment, Colors.redAccent),
                           ],
-                        ),
+                        ],
                       ),
                     ),
                   ),
@@ -170,18 +148,28 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  Widget _infoRow(String title, String value, Color color) {
+  Widget _buildInfoSection(String title, String value, Color color) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10.0),
+      padding: const EdgeInsets.only(bottom: 14.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color),
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
           ),
           const SizedBox(height: 4),
-          Text(value, style: const TextStyle(fontSize: 14)),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 14,
+              color: Colors.black87,
+            ),
+          ),
         ],
       ),
     );
