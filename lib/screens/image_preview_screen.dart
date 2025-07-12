@@ -1,87 +1,93 @@
-import 'dart:io'; // Required for File operations
-
-import 'package:flutter/material.dart'; // Core Flutter material design widgets
-import 'package:image_picker/image_picker.dart'; // Package for picking images from gallery or camera
-import 'diagnosis_screen.dart'; // Import the new diagnosis screen
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'diagnosis_screen.dart';
 
 class PickImageScreen extends StatefulWidget {
-  const PickImageScreen({super.key}); // Constructor for the widget
+  const PickImageScreen({super.key});
 
   @override
-  State<PickImageScreen> createState() => _PickImageScreenState(); // Create the state for this widget
+  State<PickImageScreen> createState() => _PickImageScreenState();
 }
 
-class _PickImageScreenState extends State<PickImageScreen> {
-  File? _image; // Variable to store the picked image file
-  final ImagePicker _picker = ImagePicker(); // Instance of ImagePicker to use for picking images
+class _PickImageScreenState extends State<PickImageScreen> with SingleTickerProviderStateMixin {
+  File? _image;
+  final ImagePicker _picker = ImagePicker();
+  late AnimationController _iconAnimController;
 
-  // Function to pick an image from a specified source (camera or gallery)
+  @override
+  void initState() {
+    super.initState();
+    _iconAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _iconAnimController.dispose();
+    super.dispose();
+  }
+
   Future<void> _pickImage(ImageSource source) async {
     try {
-      // Use the picker to get an image from the given source
       final XFile? pickedFile = await _picker.pickImage(source: source);
-
-      // If a file was picked successfully
       if (pickedFile != null) {
         setState(() {
-          _image = File(pickedFile.path); // Update the _image variable with the new file
+          _image = File(pickedFile.path);
         });
-      } else {
-        // Optionally, show a message if no image was picked
-        debugPrint('No image selected.');
       }
     } catch (e) {
-      // Handle any errors that occur during image picking
-      debugPrint('Error picking image: $e');
-      // ignore: use_build_context_synchronously
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to pick image: $e')),
+        SnackBar(content: Text('Error picking image: $e')),
       );
     }
   }
 
-  // Function to show a modal bottom sheet with camera and gallery options
   void _showImageSourceOptions() {
     showModalBottomSheet(
       context: context,
-      builder: (BuildContext context) {
-        return SafeArea( // Ensures content is not obscured by system UI
-          child: Column(
-            mainAxisSize: MainAxisSize.min, // Make the column take minimum space
-            children: <Widget>[
-              // Option to pick image from gallery
-              ListTile(
-                leading: const Icon(Icons.photo_library),
-                title: const Text('Pick from Gallery'),
-                onTap: () {
-                  Navigator.pop(context); // Close the bottom sheet
-                  _pickImage(ImageSource.gallery); // Call pickImage with gallery source
-                },
-              ),
-              // Option to take photo with camera
-              ListTile(
-                leading: const Icon(Icons.camera_alt),
-                title: const Text('Take a Photo'),
-                onTap: () {
-                  Navigator.pop(context); // Close the bottom sheet
-                  _pickImage(ImageSource.camera); // Call pickImage with camera source
-                },
-              ),
-            ],
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Wrap(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.photo_library),
+                  title: const Text("Choose from Gallery"),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickImage(ImageSource.gallery);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.camera_alt),
+                  title: const Text("Take a Photo"),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickImage(ImageSource.camera);
+                  },
+                ),
+              ],
+            ),
           ),
         );
       },
     );
   }
 
-  // Function to reset the image selection (acts as "Cancel" for the current image)
   void _cancelImageSelection() {
     setState(() {
-      _image = null; // Clear the selected image
+      _image = null;
     });
   }
 
-  // Function to submit the image for diagnosis
   void _submitForDiagnosis() {
     if (_image != null) {
       Navigator.push(
@@ -92,7 +98,7 @@ class _PickImageScreenState extends State<PickImageScreen> {
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select an image first.')),
+        const SnackBar(content: Text("Please select an image first.")),
       );
     }
   }
@@ -100,74 +106,135 @@ class _PickImageScreenState extends State<PickImageScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text("Image Picker"),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back), // Back arrow icon
-          onPressed: () {
-            Navigator.pop(context); // Pop the current screen off the navigation stack
-          },
+        title: const Text(
+          'Capture Plant Image 🌿', 
+          style: TextStyle(
+          fontSize: 26,
+          fontWeight: FontWeight.bold,
+          letterSpacing: -0.5,
+          ),
+        ),
+        backgroundColor: Colors.teal.shade400,
+        foregroundColor: Colors.white,
+        elevation: 4,
+        centerTitle: true,
+      ),
+
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 400),
+        child: _image == null
+            ? _buildEmptyState()
+            : _buildPreviewState(),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _showImageSourceOptions,
+        icon: const Icon(Icons.add_a_photo),
+        label: const Text("Add Image"),
+        backgroundColor: Colors.teal.shade50,
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            ScaleTransition(
+              scale: Tween(begin: 0.95, end: 1.05).animate(CurvedAnimation(
+                parent: _iconAnimController,
+                curve: Curves.easeInOut,
+              )),
+              child: Icon(Icons.add_photo_alternate_rounded,
+                  size: 100, color: Colors.teal.shade400),
+            ),
+            const SizedBox(height: 30),
+            Text(
+              "No Image Selected",
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w600,
+                color: Theme.of(context).colorScheme.onBackground,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              "Tap the button below to capture or upload a plant image for smart disease diagnosis.",
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+            ),
+          ],
         ),
       ),
-      body: Center(
-        child: _image == null
-            ? const Text(
-                "No Image Picked",
-                style: TextStyle(fontSize: 18, color: Colors.grey),
-              )
-            : Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Image.file(
-                        _image!, // Display the picked image
-                        fit: BoxFit.contain, // Adjust how the image fits within its bounds
-                      ),
-                    ),
+    );
+  }
+
+  Widget _buildPreviewState() {
+    return Column(
+      children: [
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(18),
+              child: Material(
+                elevation: 6,
+                child: Container(
+                  color: Theme.of(context).cardColor,
+                  child: Image.file(
+                    _image!,
+                    fit: BoxFit.contain, // ✅ Show full image
+                    width: double.infinity,
                   ),
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        ElevatedButton.icon(
-                          onPressed: _cancelImageSelection,
-                          icon: const Icon(Icons.cancel),
-                          label: const Text('Cancel'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red, // Red color for cancel
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                          ),
-                        ),
-                        ElevatedButton.icon(
-                          onPressed: _submitForDiagnosis,
-                          icon: const Icon(Icons.check_circle),
-                          label: const Text('Submit for Diagnosis'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green, // Green color for submit
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                ),
               ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showImageSourceOptions, // Call the function to show options
-        child: const Icon(Icons.add_a_photo), // Icon to suggest adding a photo
-      ),
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 0, 24, 80), // ✅ Avoid overlap with FAB
+          child: Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _cancelImageSelection,
+                  icon: const Icon(Icons.cancel_outlined),
+                  label: const Text("Cancel"),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.redAccent,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    side: const BorderSide(color: Colors.redAccent),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _submitForDiagnosis,
+                  icon: const Icon(Icons.check_circle),
+                  label: const Text("Diagnose"),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.teal.shade100,
+                    foregroundColor: const Color.fromARGB(255, 53, 32, 103),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
